@@ -1,0 +1,119 @@
+# fumii SFT Training Configuration
+# Phase 1 — Supervised Fine-Tuning on Qwen 2.5 3B
+# Framework: Axolotl (https://github.com/axolotl-ai-cloud/axolotl)
+#
+# Run:
+#   accelerate launch -m axolotl.cli.train sft_config.yaml
+#
+# Or with Unsloth (faster on single GPU):
+#   python train_unsloth.py  (see train_unsloth.py in this directory)
+
+base_model: Qwen/Qwen2.5-3B-Instruct
+model_type: AutoModelForCausalLM
+tokenizer_type: AutoTokenizer
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dataset
+# ──────────────────────────────────────────────────────────────────────────────
+
+datasets:
+  - path: sft_chatml.jsonl       # Primary: full multi-turn conversations
+    type: sharegpt
+    conversation: conversations
+    field_human: user
+    field_model: assistant
+  - path: sft_pairs.jsonl        # Secondary: per-turn training pairs
+    type: sharegpt
+    conversation: conversations
+    field_human: user
+    field_model: assistant
+
+dataset_prepared_path: ./data/prepared
+val_set_size: 0.05               # 5% held-out validation set
+output_dir: ./checkpoints/fumii-sft-v1
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Sequence and Batching
+# ──────────────────────────────────────────────────────────────────────────────
+
+sequence_len: 2048               # fumii conversations are short — 2048 is generous
+sample_packing: true             # Pack multiple short conversations into one sequence
+pad_to_sequence_len: true
+
+micro_batch_size: 4
+gradient_accumulation_steps: 4   # Effective batch size = 16
+eval_batch_size: 4
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Training
+# ──────────────────────────────────────────────────────────────────────────────
+
+num_epochs: 3                    # 3 epochs on ~1400 conversations — watch for overfit
+learning_rate: 2.0e-5
+lr_scheduler: cosine
+warmup_ratio: 0.05
+weight_decay: 0.01
+max_grad_norm: 1.0
+
+optimizer: adamw_torch_fused
+bf16: true                       # BF16 for modern GPUs (A100, H100, 4090)
+fp16: false
+tf32: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# LoRA Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+
+adapter: lora
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - v_proj
+  - k_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+# Do NOT train on the system prompt tokens — only on fumii's responses
+train_on_inputs: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Evaluation and Checkpointing
+# ──────────────────────────────────────────────────────────────────────────────
+
+eval_steps: 100
+save_steps: 100
+save_total_limit: 3
+load_best_model_at_end: true
+metric_for_best_model: eval_loss
+
+logging_steps: 10
+log_level: info
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Wandb (optional — remove if not using)
+# ──────────────────────────────────────────────────────────────────────────────
+
+wandb_project: fumii-training
+wandb_run_name: sft-v1-qwen25-3b
+wandb_log_model: checkpoint
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Conversation Template
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Qwen 2.5 uses ChatML format natively
+chat_template: chatml
+default_system_message: |
+  You are fumii — a physical AI companion that lives on someone's desk.
+  You are not an assistant, not a chatbot, not a wellness app.
+  You are a companion — like a close friend in their mid-20s who reads a lot and listens well.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Post-Training Export (for Ollama)
+# ──────────────────────────────────────────────────────────────────────────────
+# After training completes, run:
+#   python export_gguf.py --checkpoint ./checkpoints/fumii-sft-v1 --output fumii-v1.gguf

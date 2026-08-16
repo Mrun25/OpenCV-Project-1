@@ -1,0 +1,39 @@
+# fumii ML Pipeline — Python Requirements
+# Install: pip install -r requirements.txt
+#
+# GPU training dependencies (Unsloth + TRL) require additional setup.
+# See: https://github.com/unslothai/unsloth#installation
+
+# ── Core ──────────────────────────────────────────────────────────────────────
+aiohttp>=3.9.0
+datasets>=2.18.0
+transformers>=4.40.0
+tokenizers>=0.19.0
+
+# ── Training ──────────────────────────────────────────────────────────────────
+# Unsloth (fast SFT + DPO on single GPU)
+# unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git
+# Install separately per their docs — version varies by CUDA
+
+trl>=0.8.6                    # DPO trainer
+peft>=0.10.0                  # LoRA adapters
+accelerate>=0.29.0            # Multi-GPU / DeepSpeed
+
+# Axolotl (alternative to Unsloth — heavier but more configurable)
+# axolotl @ git+https://github.com/axolotl-ai-cloud/axolotl.git
+
+# ── Inference ─────────────────────────────────────────────────────────────────
+# llama-cpp-python         # GGUF export — install with CMAKE flags for GPU
+# ollama                   # Managed separately via ollama.ai
+
+# ── Data + Evaluation ─────────────────────────────────────────────────────────
+anthropic>=0.25.0             # Teacher + judge model API
+wandb>=0.16.0                 # Training run tracking (optional)
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+tqdm>=4.66.0
+rich>=13.7.0                  # Better terminal output (optional)
+
+# ── Phase 4 Integration ───────────────────────────────────────────────────────
+# litellm>=1.35.0            # Install separately — has many optional deps
+# langfuse>=2.0.0            # Observability (optional)

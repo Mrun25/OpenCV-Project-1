@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fumii_pipeline"
+version = "0.1.0"
+description = "ML Training Pipeline for fumii"
+authors = [
+    {name = "Your Name"}
+]
+dependencies = [
+    "aiohttp",
+    "litellm",
+    # The rest will be loaded from requirements.txt or can be moved here
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,94 @@
+# fumii LiteLLM Configuration — Phase 4
+# Production integration with mode-aware routing
+#
+# Start LiteLLM proxy:
+#   litellm --config litellm_config.yaml --port 4000
+#
+# Or with Docker:
+#   docker run -v $(pwd)/litellm_config.yaml:/app/config.yaml \
+#     ghcr.io/berriai/litellm:main --config /app/config.yaml --port 4000
+
+model_list:
+  # ── Primary: Fine-tuned fumii model ─────────────────────────────────────────
+  - model_name: fumii-companion
+    litellm_params:
+      model: ollama/fumii-v1-companion
+      api_base: http://localhost:11434
+    model_info:
+      description: "Fine-tuned fumii companion model. Primary for emotional conversations."
+      mode: companion
+
+  - model_name: fumii-assistant
+    litellm_params:
+      model: ollama/fumii-v1-assistant
+      api_base: http://localhost:11434
+    model_info:
+      description: "Fine-tuned fumii assistant model. Primary for task-oriented requests."
+      mode: assistant
+
+  # ── Local fallback: Base Qwen (no fine-tuning) ───────────────────────────────
+  - model_name: ollama-fallback-companion
+    litellm_params:
+      model: ollama/qwen2.5:3b
+      api_base: http://localhost:11434
+    model_info:
+      description: "Base Qwen — local fallback if fumii model fails. Lower personality fidelity."
+
+  # ── Cloud fallbacks ──────────────────────────────────────────────────────────
+  - model_name: mistral-cloud
+    litellm_params:
+      model: mistral/mistral-small-latest
+      api_key: os.environ/MISTRAL_API_KEY
+    model_info:
+      description: "First cloud fallback."
+
+  - model_name: openai-fallback
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+    model_info:
+      description: "Second cloud fallback."
+
+  - model_name: anthropic-fallback
+    litellm_params:
+      model: claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+    model_info:
+      description: "Third cloud fallback."
+
+  - model_name: gemini-fallback
+    litellm_params:
+      model: gemini/gemini-1.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+    model_info:
+      description: "Final fallback."
+
+# ── Router Settings ────────────────────────────────────────────────────────────
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 1
+  timeout: 30.0
+  retry_after: 0
+
+  # Fallback chain: fumii model → ollama base → cloud
+  fallbacks:
+    - { "fumii-companion": ["ollama-fallback-companion", "mistral-cloud", "openai-fallback", "anthropic-fallback", "gemini-fallback"] }
+    - { "fumii-assistant": ["ollama-fallback-companion", "mistral-cloud", "openai-fallback", "anthropic-fallback", "gemini-fallback"] }
+
+# ── General Settings ───────────────────────────────────────────────────────────
+
+litellm_settings:
+  set_verbose: false
+  json_logs: true
+  success_callback: ["langfuse"]        # Optional: remove if not using Langfuse
+  failure_callback: ["langfuse"]
+  cache: false                           # No response caching — every fumii response is live
+
+# ── Environment Variables Required ────────────────────────────────────────────
+# MISTRAL_API_KEY
+# OPENAI_API_KEY
+# ANTHROPIC_API_KEY
+# GEMINI_API_KEY
+# LANGFUSE_PUBLIC_KEY (optional)
+# LANGFUSE_SECRET_KEY (optional)
