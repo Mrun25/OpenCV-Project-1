@@ -60,6 +60,15 @@ curl -fsSL https://ollama.ai/install.sh | sh
 export ANTHROPIC_API_KEY=your_key_here
 ```
 
+### Running the smoke tests
+
+The tests import the pipeline as an installed package:
+
+```bash
+pip install -e .
+python tests/test_smoke.py
+```
+
 ---
 
 ## Phase 1 — Dataset + Baseline SFT
