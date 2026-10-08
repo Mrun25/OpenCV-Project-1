@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package (no heavy training deps)
+        run: |
+          pip install -e . --no-deps
+          pip install aiohttp
+      - name: Run pipeline smoke tests
+        run: python tests/test_smoke.py
